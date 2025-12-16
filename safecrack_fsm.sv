@@ -2,8 +2,10 @@ module safecrack_fsm (
     input  logic       clk,
     input  logic       rstn,
     input  logic [2:0] btn,        // buttons inputs (BTN[2:0])
-    output logic [9:0] led_green,  // green LEDs for progress indication
-    output logic [9:0] led_red     // red LEDs for error indication
+    output logic led_green1,
+	 output logic led_green2,
+    output logic led_green3,	 // green LEDs for progress indication
+    output logic led_red     // red LEDs for error indication
 );
     // one-hot encoding
     typedef enum logic [5:0] {
@@ -19,8 +21,6 @@ module safecrack_fsm (
     logic [2:0] btn_prev, btn_edge, btn_pos;
     logic       any_btn_edge;
 
-    localparam int ERROR_DELAY   = 150_000_000;  // 3 seconds delay at 50MHz clock
-    localparam int SUCCESS_DELAY = 250_000_000;  // 5 seconds delay at 50MHz clock
     localparam int MAX_DELAY     = 250_000_000;  // maximum delay value
 
     logic [$clog2(MAX_DELAY)-1:0] delay_cnt, next_delay_cnt;
@@ -59,7 +59,7 @@ module safecrack_fsm (
                 end else if (any_btn_edge) begin
                     // any other button -> error
                     next_state = ERROR;
-                    next_delay_cnt = ERROR_DELAY;
+                    next_delay_cnt = 250000000;
                 end
             end
 
@@ -70,7 +70,7 @@ module safecrack_fsm (
                 end else if (any_btn_edge) begin
                     // any other button -> error
                     next_state = ERROR;
-                    next_delay_cnt = ERROR_DELAY;
+                    next_delay_cnt = 250000000;
                 end
             end
 
@@ -78,21 +78,21 @@ module safecrack_fsm (
                 if (btn_edge == 3'b100) begin
                     // button 2 pressed -> correct 3rd digit
                     next_state = SUCCESS;
-                    next_delay_cnt = SUCCESS_DELAY;
+                    next_delay_cnt = 250000000;
                 end else if (any_btn_edge) begin
                     // any other button -> error
                     next_state = ERROR;
-                    next_delay_cnt = ERROR_DELAY;
+                    next_delay_cnt = 250000000;
                 end
             end
 
             ERROR: begin
-                if (delay_cnt > 0) begin
+                if (delay_cnt > 100000000) begin
                     next_delay_cnt = delay_cnt - 1;
                 end else begin
                     // after 3 seconds, return to initial state
                     next_state = S0;
-                    next_delay_cnt = '0;
+                    next_delay_cnt = 250000000;
                 end
             end
 
@@ -102,7 +102,7 @@ module safecrack_fsm (
                 end else begin
                     // after 5 seconds, return to initial state
                     next_state = S0;
-                    next_delay_cnt = '0;
+                    next_delay_cnt = 250000000;
                 end
             end
 
@@ -116,41 +116,15 @@ module safecrack_fsm (
 
     // output logic
     always_comb begin
-        // default: all LEDs off
-        led_green = 10'b0000000000;
-        led_red   = 10'b0000000000;
-
-        case (state)
-            S0: begin
-                // waiting for 1st digit -> 1 green LED on
-                led_green = 10'b0000000001;
-            end
-
-            S1: begin
-                // waiting for 2nd digit -> 2 green LEDs on
-                led_green = 10'b0000000011;
-            end
-
-            S2: begin
-                // waiting for 3rd digit -> 3 green LEDs on
-                led_green = 10'b0000000111;
-            end
-
-            ERROR: begin
-                // error indication -> 1 red LED on for 3 seconds
-                led_red = 10'b0000000001;
-            end
-
-            SUCCESS: begin
-                // success indication -> all green LEDs on for 5 seconds
-                led_green = 10'b1111111111;
-            end
-
-            default: begin
-                led_green = 10'b0000000000;
-                led_red   = 10'b0000000000;
-            end
-        endcase
+        
+		  led_green1 = (state == S0 || state == SUCCESS);
+		  
+		  led_green2 = (state == S1 || state == SUCCESS);
+		  
+		  led_green3 = (state == S2 || state == SUCCESS);
+		   
+		  led_red = (state == ERROR);
+		 
     end
 
 endmodule
